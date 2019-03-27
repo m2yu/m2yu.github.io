@@ -1,0 +1,38 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta name="generator" content="Hexo 3.8.0"><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="你来人间一趟,你要看看太阳"><meta name="keywords" content="渗透测试"><link rel="alternative" href="/atom.xml" title="Moza" type="application/atom+xml"><link rel="icon" href="/favicon.png"><title>WEB漏洞扫描器的设计与实现（一） - Moza</title><link rel="stylesheet" href="/css/main.css"><link rel="stylesheet" href="/js/fancybox/jquery.fancybox.min.css"><!--[if lt IE 9]><script>(function(a,b){a="abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video".split(" ");for(b=a.length-1;b>=0;b--)document.createElement(a[b])})()</script><![endif]--><script src="/js/jquery-3.1.1.min.js"></script><script src="/js/fancybox/jquery.fancybox.min.js"></script></head><body style="opacity:0"><header class="head"><h1 class="head-title u-fl"><a href="/">Moza</a></h1><nav class="head-nav u-fr"><ul class="head-nav__list"><li class="head-nav__item"><a class="head-nav__link" href="/archives">目录</a></li><li class="head-nav__item"><a class="head-nav__link" href="/about">关于</a></li></ul></nav></header><main class="main"><article class="post"><header class="post__head"><time class="post__time" datetime="2018-11-11T14:33:23.000Z">November 11, 2018</time><h1 class="post__title"><a href="/2018/11/11/web-scan-01/">WEB漏洞扫描器的设计与实现（一）</a></h1><div class="post__main echo"><h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><p><strong>毕业设计给自己挖了个巨坑，虽然这个设想从我大二开始就已经有了一个大概的模型，但是实际实现起来与想象之中还是有很大的区别，特别是在漏洞报告准确度，与及速度方面有一些比较难的取舍，所以就开了一个新系列，记录一下自己玩死自己的过程。</strong></p>
+<h3 id="关于Web漏洞扫描器"><a href="#关于Web漏洞扫描器" class="headerlink" title="关于Web漏洞扫描器"></a>关于Web漏洞扫描器</h3><p><strong>目前主流的漏洞扫描器大概分为以下三类。</strong></p>
+<p><strong>主动型：直接主动发起扫描请求。（**</strong>ps<strong>**：</strong> <strong>图自己画的，丑别怪我**</strong>hhhh<strong>**）</strong></p>
+<p><a href="https://image.3001.net/images/20181219/1545188435_5c19b45336fc3.png" target="_blank" rel="noopener"><img src="https://image.3001.net/images/20181219/1545188435_5c19b45336fc3.png!small" alt="图片.png"></a></p>
+<p><strong>被动型：利用中间代理或者别的方式进行发现漏洞。</strong></p>
+<p><a href="https://image.3001.net/images/20181219/1545188443_5c19b45bbc3ac.png" target="_blank" rel="noopener"><img src="https://image.3001.net/images/20181219/1545188443_5c19b45bbc3ac.png!small" alt="图片.png"></a></p>
+<p><strong>云扫描：部署在云端的扫描器，用户通过浏览器就可进行扫描。</strong></p>
+<p><a href="https://image.3001.net/images/20181219/1545188455_5c19b46731032.png" target="_blank" rel="noopener"><img src="https://image.3001.net/images/20181219/1545188455_5c19b46731032.png!small" alt="图片.png"></a></p>
+<p><strong>这里我打算做的是主动型与云端型，主体是主动型，主动型做好了，改成云端的不难。</strong></p>
+<h3 id="扫描器的工作流程"><a href="#扫描器的工作流程" class="headerlink" title="扫描器的工作流程"></a>扫描器的工作流程</h3><p><strong>首先作为一个自动化的测试工具，得先弄清楚扫描器与手工测试的区别</strong></p>
+<p><strong>手工渗透测试的流程如下</strong></p>
+<p><strong>- 信息收集</strong> </p>
+<p><strong>- 漏洞发现</strong> </p>
+<p><strong>- 验证漏洞</strong> </p>
+<p><strong>- 利用方法（EXP或者POC）</strong> </p>
+<p><strong>- 编写测试报告</strong></p>
+<p><strong>扫描器的流程</strong></p>
+<p><strong>- 信息收集</strong> </p>
+<p><strong>- 发现漏洞（漏洞验证）</strong> </p>
+<p><strong>- 生成报告</strong></p>
+<p><strong>人为的渗透测试需要签写各类合约，在不破化业务的功能性下，尽可能的获得更多的数据与及权限。但是扫描器不一样。只需要点到即可，验证漏洞，不需要后续的漏洞利用环节。</strong></p>
+<h3 id="信息收集"><a href="#信息收集" class="headerlink" title="信息收集"></a>信息收集</h3><p><strong>其中信息收集不管是在人为的渗透测试，还是扫描器中都是至关重要的一步，没有信息收集，那就不会为下一步的发现漏洞做铺垫，越多的信息对整个渗透测试或者扫描过程来说都是愈好的。</strong></p>
+<p><strong>在**</strong>WEB<strong>**扫描中，我们大概所需要的信息如下</strong></p>
+<p><strong>IP信息：其中这里的ip包括端口开放信息，c段信息等等。</strong> </p>
+<p><strong>子域名： 企业一般会把各种业务放在二级域名下，比如说百度的网盘业务地址为:pan.baidu.com</strong> </p>
+<p><strong>指纹信息：知晓目标的指纹信息可以去找相应的nday实现攻击</strong> </p>
+<p><strong>敏感信息：敏感目录，备份文件，未授权访问的后台，邮箱，数据库等等</strong> </p>
+<p><strong>超链接： 在爬虫对目标站点进行爬取时，都应该进行入库处理，方便后续处理</strong></p>
+<h3 id="漏洞发现"><a href="#漏洞发现" class="headerlink" title="漏洞发现"></a>漏洞发现</h3><p><strong>在信息收集完毕之后，就需要对所收集到的内容进行漏洞发现，在漏洞发现之后还需要进行漏洞验证，避免出现大量误报，提高准确率</strong><br><strong>以下是主要进行的方式</strong></p>
+<p><strong>端口：识别端口服务，进行相应的爆破，0day测试</strong> </p>
+<p><strong>URL：识别参数，进行类似sql注入等测试</strong> </p>
+<p><strong>cms：指纹识别。进行入库匹配相应poc</strong> </p>
+<p><strong>http协议 ：改变各类参数，进行fuzz</strong></p>
+<h3 id="报告阶段"><a href="#报告阶段" class="headerlink" title="报告阶段"></a>报告阶段</h3><p><strong>生成html或者execl格式报告</strong></p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">扫描器的设计我们得遵循一些原则，不然做出来的东西，难以维护，难以增减模块，那不是我们想要的。</span><br><span class="line">1，足够的独立性。</span><br><span class="line">如果模块之间相互影响太大，牵一发而动全身那明显不是我们所需要的。</span><br><span class="line">2，单一职责原则</span><br><span class="line">如果某一个模块担任了太多的功能，那么很可能某个挂了然后剩下的也会挂的，所以一个模块一个功能是非常必要的。</span><br><span class="line">3，高并发的设计思想</span><br><span class="line">扫描器如果做不到高并发，我想没人愿意等到漫长的扫描时间。</span><br><span class="line">所以根据以上信息，我们可以确定一下我们漏洞扫描器的功能模块。</span><br><span class="line">一 爬虫模块：</span><br><span class="line">负责爬取目标站点可见的url，进行相应的入库处理，然后分级处理，比如说可以递交到敏感信息模块去匹配信息，又或者递交给漏洞检测模块进行检测。爬虫模块作为漏扫的主要眼睛，必须非常壮硕，所以在未来的实现爬虫模块篇中，将会是个问题。</span><br><span class="line">二 域名探测模块:</span><br><span class="line">进行子域名的查询，包括二级，三级，多级。这里实现的方式主要有爆破，dns，搜索引擎。</span><br><span class="line">三 端口扫描模块:</span><br><span class="line">通过各种方法获取真实ip   爆破服务器端口，将结果递交给指纹识别模块进行识别与爆破模块进行相应服务的爆破。</span><br><span class="line">四 指纹识别模块:</span><br><span class="line">内置大量指纹信息，居然可拓展的性质，进行相应的指纹识别，并将识别结果提交漏洞检测模块进行相应的nday查询。</span><br><span class="line">五 敏感信息模块:</span><br><span class="line">具有大量敏感信息目录，进行爆破操作，或者从爬虫获取相应数据进行匹配。</span><br><span class="line">六 爆破模块:</span><br><span class="line">内置各类服务爆破操作。</span><br><span class="line">七 漏洞检测模块:</span><br><span class="line">分为常规漏洞检测，与0day/nday检测，如何做到高效率的检测，又是一个问题了。</span><br><span class="line">八 生成报告模块:</span><br><span class="line">将结果输出成扫描报告。</span><br><span class="line">九 “主控模块”:</span><br></pre></td></tr></table></figure>
+<p><strong>进行各模块安全可控的调度，以高效率的运转</strong></p>
+<p>END</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">如何实现，请期待接下来的文章，有好的设计方法或者思想的可以评论呀~</span><br><span class="line">End</span><br></pre></td></tr></table></figure></div></header><footer class="post__foot u-cf"><ul class="post__tag u-fl"><li class="post__tag__item"><a class="post__tag__link" href="/tags/安全工具-python/">安全工具,python</a></li></ul></footer></article><section class="reward"><a class="btn-reward" href="#">打赏</a><div class="reward-wrapper clearfix"><img src="/img/wechat.png" title="微信"></div></section></main><footer class="foot"><div class="foot-copy">&copy; 2017 - 2019 你来人间一趟,你要看看太阳</div></footer><script src="/js/scroller.js"></script><script src="/js/main.js"></script></body></html>
