@@ -1,0 +1,78 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta name="generator" content="Hexo 3.8.0"><meta charset="utf-8"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="author" content="你来人间一趟,你要看看太阳"><meta name="keywords" content="渗透测试"><link rel="alternative" href="/atom.xml" title="Moza" type="application/atom+xml"><link rel="icon" href="/favicon.png"><title>一句话如何bypass安全狗，D盾 - Moza</title><link rel="stylesheet" href="/css/main.css"><link rel="stylesheet" href="/js/fancybox/jquery.fancybox.min.css"><!--[if lt IE 9]><script>(function(a,b){a="abbr article aside audio bdi canvas data datalist details dialog figcaption figure footer header hgroup main mark meter nav output progress section summary template time video".split(" ");for(b=a.length-1;b>=0;b--)document.createElement(a[b])})()</script><![endif]--><script src="/js/jquery-3.1.1.min.js"></script><script src="/js/fancybox/jquery.fancybox.min.js"></script></head><body style="opacity:0"><header class="head"><h1 class="head-title u-fl"><a href="/">Moza</a></h1><nav class="head-nav u-fr"><ul class="head-nav__list"><li class="head-nav__item"><a class="head-nav__link" href="/archives">目录</a></li></ul></nav></header><main class="main"><article class="post"><header class="post__head"><time class="post__time" datetime="2019-01-17T12:29:32.000Z">January 17, 2019</time><h1 class="post__title"><a href="/2019/01/17/webshell-bypass/">一句话如何bypass安全狗，D盾</a></h1><div class="post__main echo"><h2 id="0-00-前言"><a href="#0-00-前言" class="headerlink" title="0*00 前言"></a>0*00 前言</h2><p><strong>相信各位师傅都有自己过waf一句话的思路，我这写一下自己常用的思路与及具体方法，如有错误，还望大家斧正。<br>上次很多师傅问我要的web漏扫的github地址抱歉还不能给你们，（毕设没答辩完，而且还没写完Orz）</strong></p>
+<h2 id="0-01-Webshell"><a href="#0-01-Webshell" class="headerlink" title="0*01  Webshell"></a>0*01  Webshell</h2><p><strong>这里，我主要是写php webshell的bypass（主要是其他的没研究过），安全狗的版本是在官网下载的apache4.0版本。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpRkDI.png" alt></p>
+<p><strong>D盾是2.0.9的</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpRPvd.md.png" alt></p>
+<p><strong>在bypass之前我们得先了解一下最基本的webshell的组成。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpR98e.png" alt></p>
+<p><strong>所以不管webshell再怎么变化，都必须满足这两点。我们就可以根据这两点来进行变化从而达到bypass的目的。</strong></p>
+<p><strong>当然我们要绕过waf，首先就得先了解waf的检测机制，这里我们先测试安全狗的，先准备几个文件。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpRFKA.png" alt></p>
+<p><strong>扫描一下</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpRCgH.md.png" alt></p>
+<p><strong>带有eval的敏感字符与及敏感传参的$_POST并没有报毒，可以猜测waf的一部分机制是参数追踪与及综合判定。</strong></p>
+<h2 id="0-02-Bypass"><a href="#0-02-Bypass" class="headerlink" title="0*02  Bypass"></a>0*02  Bypass</h2><p><strong>现在我们就可以尝试一些方法进行绕过。</strong></p>
+<h3 id="一-关键字变形"><a href="#一-关键字变形" class="headerlink" title="一.关键字变形"></a>一.关键字变形</h3><p><strong>对于关键字变形，能用的实在太多了，php是个非常强大的语言对于字符串的各种变化都支持的非常好。</strong></p>
+<p><strong>我们可以用进制转换，十六进制，八进制之类的。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpR6IK.png" alt></p>
+<p><strong>这样子就bypass了安全狗，或许会有人会说，为什么不用eval而用assert。其实我也想用eval但是，eval并不是一个函数，不支持这样子的调用。具体分析可以自行百度一下。</strong></p>
+<p><strong>但是很明显这样子过不了D盾</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpRDq1.md.png" alt></p>
+<p><strong>问题不大，我们可以尝试更多的方法。</strong></p>
+<h3 id="二．算术运算"><a href="#二．算术运算" class="headerlink" title="二．算术运算"></a>二．算术运算</h3><p><strong>我们可以同通过自增，异或，取反等方法来获得我们想要的字母，再组合成函数，动态调用即可。</strong></p>
+<p><strong>例如：</strong></p>
+<p><strong>通过定义a 然后进行自增运算得到其他文明想要的字符，但是注意并不能进行自减</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpRBrR.png" alt><br><strong>但是我们这样子取出来的只有小写字符，并不能得到我们想要_POST，_GET。</strong><br><strong>在PHP中，两个字符串执行异或操作以后，得到的还是一个字符串。所以这里我们就可以用异或，取反来取我们想要的大写字母。<br>写个php脚本。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpRsVx.md.png" alt></p>
+<p><strong>把能想到特殊字符全部丢进去得到遍历异或的结果，然后再取我们想要的字符。<br>这里我们就以取_POST为例子。</strong></p>
+<p><strong>_可以用 | 和 # 来进行异或得到</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpR0M9.png" alt></p>
+<p><strong>然后一个个找出来，得到的结果就是：</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpWUTP.png" alt></p>
+<p><strong>结合我们上面的自增我们可以得到以下代码</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpWwY8.png" alt></p>
+<p><strong>测试一下，可以过安全狗，但是过不了D盾，可是我们的安全等级下降了，问题不大，继续肝。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpWDSg.md.png" alt></p>
+<h3 id="三．编码加拼接"><a href="#三．编码加拼接" class="headerlink" title="三．编码加拼接"></a>三．编码加拼接</h3><p><strong>通过base64与及rot13编码，动态函数调用得到以下代码</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpWdFf.png" alt></p>
+<p><strong>稳过安全狗，但是还是没有过D盾，可是等级我们再次降低了一个级别，变成二级了。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpW0fS.md.png" alt></p>
+<p><strong>我们可以再结合一下上面所说的，把自增运算与及参数的传递打破一下检测的规则。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpWrlQ.png" alt></p>
+<p><strong>检测一下：</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpWcmn.md.png" alt></p>
+<p><strong>可以发现，安全狗我们再次无压力，并且D盾等级再次降低，降到了一级，只报了一个变量函数，针对这一点，我们再改一下。这次我们可以采用数组的方式，经过多次变换，再加上参数扰乱达到bypass的目的。</strong><br><strong>代码如下：</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpWsyj.png" alt></p>
+<p><strong>测试如下：</strong></p>
+<p><strong>安全狗，D盾 bypass成功</strong><br><img src="https://s2.ax1x.com/2019/01/17/kpWyOs.md.png" alt></p>
+<p><strong>深信服bypass成功</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kpWgwq.md.png" alt></p>
+<p><strong>360主机卫士bypass成功</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kphe56.md.png" alt></p>
+<p><strong>可以发现我们已经bypass掉了安全狗，D盾，深信服，360主机卫士。</strong></p>
+<p><strong>当然远不止这种方法，php实在太灵活了。</strong></p>
+<ul>
+<li>uopz_function()</li>
+<li>uasort()</li>
+<li>uksort()</li>
+<li>array_uintersect_uassoc()</li>
+<li>array_udiff_assoc()</li>
+</ul>
+<p><strong>等等，都可以用来bypass，用法可以自己尝试。</strong></p>
+<p><strong>我这贴出两种思路</strong></p>
+<p><strong>这个一句话是在鹏城杯线下赛中出现的，<br>通过自增得到关键字，然后定义类，类内函数自调用来进行bypass。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kphZUx.md.png" alt></p>
+<p><strong>另一种，我们可以利用php的反射机制，获取注释的内容，然后拼凑出assert，从而动态执行，代码如下。</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kphVV1.png" alt></p>
+<p><strong>检测效果如下：</strong></p>
+<p><img src="https://s2.ax1x.com/2019/01/17/kphnPK.md.png" alt></p>
+<p><strong>这样子也可以bypass D盾 安全狗 等。</strong></p>
+<p><strong>Bypass的思路还有</strong></p>
+<ul>
+<li>缓存写webshell</li>
+<li>回调函数</li>
+<li>正则匹配绕过</li>
+<li>匿名函数<br><strong>……</strong><h2 id="0-03-In-the-end"><a href="#0-03-In-the-end" class="headerlink" title="0*03 In the end"></a>0*03 In the end</h2></li>
+</ul>
+<p><strong>不管是什么waf，摸清楚规则，不断尝试才是王道，借用前辈的一句话。</strong><br><strong>“知识面决定攻击面”。</strong><br><strong>共勉。</strong></p>
+<h5 id="本文已首发合天智汇，在此仅作记录。"><a href="#本文已首发合天智汇，在此仅作记录。" class="headerlink" title="本文已首发合天智汇，在此仅作记录。"></a>本文已首发合天智汇，在此仅作记录。</h5></div></header><footer class="post__foot u-cf"><ul class="post__tag u-fl"><li class="post__tag__item"><a class="post__tag__link" href="/tags/代码审计/">代码审计</a></li></ul></footer></article><section class="reward"><a class="btn-reward" href="#">打赏</a><div class="reward-wrapper clearfix"><img src="/img/wechat.png" title="微信"></div></section></main><footer class="foot"><div class="foot-copy">&copy; 2017 - 2019 你来人间一趟,你要看看太阳</div></footer><script src="/js/scroller.js"></script><script src="/js/main.js"></script></body></html>
